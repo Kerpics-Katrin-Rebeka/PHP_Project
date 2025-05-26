@@ -1,0 +1,84 @@
+<?php
+set_time_limit(0);
+
+function fetchAPI($url) {
+    $response = @file_get_contents($url); 
+    if ($response === FALSE) {
+        return null;
+    }
+    return json_decode($response, true);
+}
+
+function getPokemonFromGenVII() {
+    $generationUrl = "https://pokeapi.co/api/v2/generation/7/";
+    $generationData = fetchAPI($generationUrl);
+
+    if (!$generationData) {
+        die("Failed to load Generation VII data.\n");
+    }
+
+    return array_map(function ($entry) {
+        return $entry['name'];
+    }, $generationData['pokemon_species']);
+}
+
+function getPokemonBasicInfo($speciesName) {
+    $speciesUrl = "https://pokeapi.co/api/v2/pokemon-species/{$speciesName}/";
+    $speciesData = fetchAPI($speciesUrl);
+
+    if (!$speciesData || empty($speciesData['varieties'])) {
+        throw new Exception("No varieties found for {$speciesName}");
+    }
+
+    $defaultPokemon = null;
+    foreach ($speciesData['varieties'] as $variety) {
+        if ($variety['is_default']) {
+            $defaultPokemon = $variety['pokemon']['name'];
+            break;
+        }
+    }
+
+    if (!$defaultPokemon) {
+        throw new Exception("No default variety for {$speciesName}");
+    }
+
+    $data = fetchAPI("https://pokeapi.co/api/v2/pokemon/{$defaultPokemon}");
+    if (!$data) {
+        throw new Exception("Failed to fetch data for {$defaultPokemon}");
+    }
+
+    return [
+        'id' => $data['id'],
+        'name' => $data['name'],
+        'height' => $data['height'],
+        'weight' => $data['weight'],
+        'types' => array_map(function ($typeEntry) {
+            return $typeEntry['type']['name'];
+        }, $data['types']),
+        'sprite' => $data['sprites']['front_default'] ?? null
+    ];
+}
+
+
+function saveToJson($filename, $data) {
+    file_put_contents($filename, json_encode($data, JSON_PRETTY_PRINT));
+}
+
+echo "Fetching Pokémon from Sun & Moon (Gen VII)...\n";
+
+$names = getPokemonFromGenVII();
+$pokemonData = [];
+
+foreach ($names as $name) {
+    try {
+        echo "Fetching data for: $name\n";
+        $pokemonData[] = getPokemonBasicInfo($name);
+        sleep(1);
+    } catch (Exception $e) {
+        echo "Skipped $name: " . $e->getMessage() . "\n";
+    }
+}
+
+saveToJson("sun_moon_pokemon.json", $pokemonData);
+
+echo "Saved " . count($pokemonData) . " Pokémon to sun_moon_pokemon.json\n";
