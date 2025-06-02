@@ -1,5 +1,5 @@
 <?php
-// Database connection
+
 $host = 'localhost';
 $user = 'root';
 $password = '';
@@ -11,6 +11,17 @@ if ($conn->connect_error) {
 }
 
 $sql = "SELECT * FROM sun_moon_pokemon ORDER BY id";
+$result = $conn->query($sql);
+
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+
+if (!empty($search)) {
+    $searchSafe = $conn->real_escape_string($search);
+    $sql = "SELECT * FROM sun_moon_pokemon WHERE name LIKE '%$searchSafe%' OR id = '$searchSafe' ORDER BY id";
+} else {
+    $sql = "SELECT * FROM sun_moon_pokemon ORDER BY id";
+}
+
 $result = $conn->query($sql);
 ?>
 
@@ -140,7 +151,7 @@ $result = $conn->query($sql);
             background: linear-gradient(135deg, #f5c7c7, #e08888);
         }
         .card.poison {
-            background: linear-gradient(135deg, #e0c4f7, #c592e0);
+            background: linear-gradient(135deg, #529155, #428b46);
         }
         .card.ground {
             background: linear-gradient(135deg, #f8e0b0, #eac97a);
@@ -171,6 +182,20 @@ $result = $conn->query($sql);
         }
         .card.fairy {
             background: linear-gradient(135deg, #fde0f0, #f7b6d2);
+        }
+
+        .card:hover::after {
+            content: "✨";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            animation: sparkle 1s ease infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
         }
 
 
@@ -204,7 +229,20 @@ $result = $conn->query($sql);
 </head>
 <body>
 
-<h1>Pokémon Sun & Moon - Card View</h1>
+<h1>Pokémon - Sun & Moon</h1>
+
+<p style="text-align:center;">
+    <a href="create.php">➕ Add New Pokémon</a>
+</p>
+
+<form method="GET" style="text-align:center; margin-bottom:20px;">
+    <input type="text" name="search" placeholder="Search by name or ID..." 
+           value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" 
+           style="padding:10px 15px; width:250px; border-radius:12px; border:1px solid #ccc;">
+    <button type="submit" style="padding:10px 15px; border:none; background:#2ecc71; color:white; border-radius:12px; cursor:pointer;">
+        🔍 Search
+    </button>
+</form>
 
 <div class="grid">
     <?php if ($result->num_rows > 0): ?>
@@ -226,6 +264,8 @@ $result = $conn->query($sql);
                     <img src="types/<?= $type2 ?>.png" alt="<?= $type2 ?>" title="<?= ucfirst($type2) ?>" class="type-icon">
                 <?php endif; ?>
             </div>
+            <a href="update.php?id=<?= $row['id'] ?>">Edit</a>
+            <a href="delete.php?id=<?= $row['id'] ?>" onclick="return confirm('Delete this Pokémon?')">Delete</a>
         </div>
         <?php endwhile; ?>
     <?php else: ?>
